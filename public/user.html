@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#ffffff">
+<title>채팅</title>
+<link rel="icon" href="data:,">
+<style>
+:root{--bg:#f4f6fa;--card:#fff;--ink:#1b2430;--mute:#6b7685;--line:#e3e8ef;--accent:#2f6df6;--admin:#12945a;--danger:#d92d20}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+body{font:16px/1.45 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;color:var(--ink);background:var(--bg);-webkit-text-size-adjust:100%;overscroll-behavior:none}
+button,input{font:inherit;color:inherit}
+.screen{min-height:100dvh;display:flex;flex-direction:column}
+.center{align-items:center;justify-content:center;text-align:center;padding:28px;gap:14px}
+.center h1{font-size:22px;margin:0}
+.center p{margin:0;color:var(--mute)}
+.card{width:100%;max-width:380px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;display:flex;flex-direction:column;gap:12px;text-align:left}
+.card label{font-size:13px;font-weight:600;color:var(--mute);margin-bottom:-6px}
+.btn{white-space:nowrap;flex-shrink:0;min-height:48px;border:0;border-radius:12px;background:var(--accent);color:#fff;font-weight:600;padding:0 18px;cursor:pointer}
+.btn:disabled{opacity:.4}
+.field{min-height:48px;width:100%;border:1px solid var(--line);border-radius:12px;padding:0 14px;background:#fff;outline:none}
+.field:focus{border-color:var(--accent)}
+.note{font-size:13px;color:var(--mute)}
+.err{font-size:13px;color:var(--danger);min-height:18px}
+/* chat */
+#chat{height:100dvh}
+.top{display:flex;align-items:center;gap:8px;padding:10px 12px;padding-top:calc(10px + env(safe-area-inset-top));background:var(--card);border-bottom:1px solid var(--line)}
+.top .ttl{flex:1;min-width:0}
+.top .ttl b{display:block;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top .ttl span{font-size:12px;color:var(--mute)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#aab2bf;margin-right:5px}
+.dot.on{background:#22c55e}
+.leave{white-space:nowrap;min-height:40px;padding:0 14px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--danger);font-weight:600}
+#list{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;-webkit-overflow-scrolling:touch}
+.row{display:flex;flex-direction:column;max-width:82%}
+.row.mine{align-self:flex-end;align-items:flex-end}
+.row .who{font-size:12px;color:var(--mute);margin:0 4px 2px}
+.row .who.admin{color:var(--admin);font-weight:700}
+.bubble{padding:9px 13px;border-radius:16px;background:#fff;border:1px solid var(--line);word-break:break-word;white-space:pre-wrap}
+.mine .bubble{background:var(--accent);border-color:var(--accent);color:#fff}
+.admin .bubble{border-color:#bfe8d3;background:#eefaf3}
+.bar{display:flex;gap:8px;align-items:center;padding:8px 10px;padding-bottom:calc(8px + env(safe-area-inset-bottom));background:var(--card);border-top:1px solid var(--line)}
+.bar form{display:flex;gap:8px;flex:1;min-width:0}
+.bar .field{min-height:44px}
+.send{min-width:60px}
+.photo{position:relative;min-width:56px;min-height:44px;border:1px solid var(--line);border-radius:12px;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;line-height:1.1;cursor:pointer;color:var(--mute)}
+.photo svg{width:20px;height:20px;stroke:var(--ink)}
+.photo.off{opacity:.45;pointer-events:none}
+.photo input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}
+#toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#1b2430;color:#fff;font-size:14px;padding:9px 14px;border-radius:10px;max-width:86%;text-align:center;z-index:5}
+.spin{width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:r 1s linear infinite}
+@keyframes r{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<main>
+  <section class="screen center" data-screen="setup" hidden>
+    <h1>설정이 필요합니다</h1>
+    <p>config.js 에 Supabase 주소와 키를 입력해 주세요.</p>
+  </section>
+
+  <section class="screen center" data-screen="loading">
+    <div class="spin"></div>
+    <p>채팅방을 확인하고 있어요…</p>
+  </section>
+
+  <section class="screen center" data-screen="closed" hidden>
+    <h1>지금은 채팅이 열려 있지 않아요</h1>
+    <p id="closedMsg">운영자가 채팅을 열면 입장할 수 있어요.</p>
+    <button class="btn" id="retry" type="button">다시 확인</button>
+  </section>
+
+  <section class="screen center" data-screen="join" hidden>
+    <form class="card" id="joinForm" autocomplete="off">
+      <h1 id="roomName" style="font-size:20px;margin:0"></h1>
+      <p class="note">소속과 이름을 모두 입력해야 입장할 수 있어요. 채팅은 모두에게 보이고, 사진은 운영자에게만 전달됩니다.</p>
+      <label for="aff">소속</label>
+      <input class="field" id="aff" maxlength="20" placeholder="예: 청년부, 1팀" enterkeyhint="next" required>
+      <label for="nm">이름</label>
+      <input class="field" id="nm" maxlength="20" placeholder="이름" enterkeyhint="go" required>
+      <div class="err" id="joinErr"></div>
+      <button class="btn" id="joinBtn" type="submit" disabled>입장하기</button>
+    </form>
+  </section>
+
+  <section class="screen" data-screen="chat" id="chat" hidden>
+    <div class="top">
+      <div class="ttl"><b id="chatTitle"></b><span><i class="dot" id="dot"></i><span id="quota"></span></span></div>
+      <button class="leave" id="leaveBtn" type="button">대화 종료</button>
+    </div>
+    <div id="list" aria-live="polite"></div>
+    <div class="bar">
+      <label class="photo" id="photoBtn" title="사진 보내기(운영자에게만 전달)">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-2.5h6L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+        <span id="photoCnt">0/3</span>
+        <input type="file" id="file" accept="image/*">
+      </label>
+      <form id="form" autocomplete="off">
+        <input class="field" id="msg" maxlength="300" placeholder="메시지 입력" enterkeyhint="send">
+        <button class="btn send" id="sendBtn" type="submit">전송</button>
+      </form>
+    </div>
+  </section>
+
+  <section class="screen center" data-screen="ended" hidden>
+    <h1 id="endTitle">대화가 종료되었어요</h1>
+    <p id="endMsg">참여해 주셔서 감사합니다. 이 창을 닫아 주세요.</p>
+  </section>
+</main>
+<div id="toast" hidden></div>
+
+<script src="/config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+(() => {
+'use strict';
+const C = window.APP_CONFIG || {};
+const $ = (id) => document.getElementById(id);
+const show = (name) => document.querySelectorAll('.screen').forEach((s) => { s.hidden = s.dataset.screen !== name; });
+
+// ---- 서버(schema.sql)와 맞춰야 하는 값 ----
+const MAX_MSG = 8;               // 사용자 1명당 최대 메시지 수
+const MAX_PHOTO = 3;             // 사용자 1명당 최대 사진 수
+const MAX_PHOTO_BYTES = 1000000; // 1MB(1,048,576) 미만으로 자동 축소
+const THUMB_BYTES = 30000;       // 운영자 모아보기용 썸네일
+const SEND_COOLDOWN = 2000;      // ms
+const HEARTBEAT_MS = 25000;      // 접속 유지 신호 간격
+
+if (!C.SUPABASE_URL || /YOUR/.test(C.SUPABASE_URL) || !C.SUPABASE_ANON_KEY || /YOUR/.test(C.SUPABASE_ANON_KEY)) {
+  show('setup'); return;
+}
+
+const sb = supabase.createClient(C.SUPABASE_URL, C.SUPABASE_ANON_KEY, {
+  auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  realtime: { params: { eventsPerSecond: 5 } }
+});
+
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (_) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (_) {} }
+};
+let clientId = store.get('cid');
+if (!clientId) { clientId = crypto.randomUUID(); store.set('cid', clientId); }
+
+const token = (location.pathname.match(/^\/c\/([a-z0-9]+)/i) || [])[1]
+  || new URLSearchParams(location.search).get('r') || '';
+
+let room = null, channel = null, aff = '', nm = '', myCount = 0, photoCount = 0, lastSend = 0, left = false, firstSub = true, hb = null;
+const seen = new Set();
+
+function toast(t, ms = 2600) {
+  const el = $('toast'); el.textContent = t; el.hidden = false;
+  clearTimeout(toast.t); toast.t = setTimeout(() => { el.hidden = true; }, ms);
+}
+
+// ---- 1) 운영 여부 확인 ----
+async function fetchRoom() {
+  if (!/^[a-z0-9]{10,32}$/.test(token)) return { room: null, bad: true };
+  const { data, error } = await sb.rpc('get_open_room', { p_token: token });
+  if (error) return { room: null, err: true };
+  const r = Array.isArray(data) ? data[0] : data;
+  return { room: r || null };
+}
+async function start() {
+  show('loading');
+  const r = await fetchRoom();
+  if (!r.room) {
+    $('closedMsg').textContent = r.bad ? '올바르지 않은 접속 링크예요. 운영자에게 링크를 다시 받아 주세요.'
+      : r.err ? '연결에 실패했어요. 잠시 후 다시 확인해 주세요.'
+      : '운영자가 채팅을 열면 입장할 수 있어요.';
+    show('closed'); return;
+  }
+  room = r.room;
+  $('roomName').textContent = room.name;
+  $('aff').value = store.get('aff') || '';
+  $('nm').value = store.get('nm') || '';
+  checkJoinable();
+  show('join');
+}
+$('retry').onclick = start;
+
+// ---- 2) 입장: 소속 + 이름 둘 다 입력해야 가능 ----
+function checkJoinable() {
+  $('joinBtn').disabled = !($('aff').value.trim() && $('nm').value.trim());
+}
+$('aff').addEventListener('input', checkJoinable);
+$('nm').addEventListener('input', checkJoinable);
+$('joinForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const a = $('aff').value.trim(), n = $('nm').value.trim();
+  const err = $('joinErr'); err.textContent = '';
+  if (!a || !n) { err.textContent = '소속과 이름을 모두 입력해 주세요.'; return; }
+  $('joinBtn').disabled = true;
+  const res = await joinServer(a, n);
+  if (res === 'ok') { aff = a; nm = n; store.set('aff', a); store.set('nm', n); enterChat(); return; }
+  checkJoinable();
+  if (res === 'closed') { start(); return; }
+  err.textContent = res === 'kicked' ? '운영자에 의해 입장이 제한되었어요.'
+    : res === 'full' ? '현재 접속 인원이 가득 찼어요. 잠시 후 다시 시도해 주세요.'
+    : res === 'invalid' ? '소속과 이름은 각각 20자 이내로 입력해 주세요.'
+    : '연결에 실패했어요. 다시 시도해 주세요.';
+});
+async function joinServer(a, n) {
+  const { data, error } = await sb.rpc('join_room', { p_room: room.id, p_client: clientId, p_affil: a, p_name: n });
+  return error ? 'error' : data;
+}
+
+function enterChat() {
+  photoCount = Number(store.get(`pc:${room.id}:${clientId}`) || 0);
+  $('chatTitle').textContent = room.name;
+  updateQuota();
+  show('chat');
+  channel = sb.channel('room:' + room.id, { config: { broadcast: { self: false } } })
+    .on('broadcast', { event: 'msg' }, ({ payload }) => {
+      if (!payload || seen.has(payload.id)) return;
+      addMsg({ id: payload.id, sender: payload.s, nick: payload.n, body: payload.b, mine: false });
+    })
+    .on('broadcast', { event: 'kick' }, ({ payload }) => {
+      if (payload && payload.c === clientId) end('채팅에서 나가게 되었어요', '운영자에 의해 채팅방에서 내보내졌습니다.');
+    })
+    .on('broadcast', { event: 'closed' }, () => end('채팅이 종료되었어요', '운영자가 채팅을 종료했습니다. 이 창을 닫아 주세요.'))
+    .subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        $('dot').classList.add('on');
+        await loadHistory();
+        if (!firstSub) beat();
+        firstSub = false;
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        $('dot').classList.remove('on');
+      }
+    });
+  hb = setInterval(beat, HEARTBEAT_MS);
+}
+
+// 접속 유지 신호 + 상태 확인 (운영자가 종료했거나 내보냈는지)
+async function beat() {
+  if (left || !room) return;
+  const { data, error } = await sb.rpc('heartbeat', { p_room: room.id, p_client: clientId });
+  if (error) return;
+  if (data === 'closed') end('채팅이 종료되었어요', '운영자가 채팅을 종료했습니다. 이 창을 닫아 주세요.');
+  else if (data === 'kicked') end('채팅에서 나가게 되었어요', '운영자에 의해 채팅방에서 내보내졌습니다.');
+  else if (data === 'unknown') { const r = await joinServer(aff, nm); if (r === 'closed') beat(); }
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden && channel) beat(); });
+
+async function loadHistory() {
+  const { data } = await sb.rpc('get_history', { p_room: room.id, p_client: clientId });
+  if (!Array.isArray(data)) return;
+  data.forEach((m) => addMsg({ id: m.id, sender: m.sender, nick: m.nickname, body: m.body, mine: !!m.mine }));
+  myCount = Math.max(myCount, data.filter((m) => m.mine).length);
+  updateQuota();
+}
+
+// ---- 3) 메시지 ----
+function addMsg(m) {
+  if (m.id != null) { if (seen.has(m.id)) return; seen.add(m.id); }
+  const list = $('list');
+  const near = list.scrollHeight - list.scrollTop - list.clientHeight < 120;
+  const row = document.createElement('div');
+  const admin = m.sender === 'admin';
+  row.className = 'row' + (m.mine ? ' mine' : '') + (admin ? ' admin' : '');
+  const who = document.createElement('div');
+  who.className = 'who' + (admin ? ' admin' : '');
+  who.textContent = admin ? '운영자' : m.nick;
+  const b = document.createElement('div');
+  b.className = 'bubble'; b.textContent = m.body;
+  if (!m.mine) row.append(who);
+  row.append(b); list.append(row);
+  while (list.children.length > 200) list.firstChild.remove();
+  if (near || m.mine) list.scrollTop = list.scrollHeight;
+}
+function updateQuota() {
+  $('quota').textContent = `${aff} · ${nm} · 메시지 ${Math.max(0, MAX_MSG - myCount)}개 남음`;
+  $('photoCnt').textContent = `${photoCount}/${MAX_PHOTO}`;
+  $('photoBtn').classList.toggle('off', photoCount >= MAX_PHOTO);
+}
+
+$('form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const input = $('msg'); const body = input.value.trim();
+  if (!body) return;
+  if (myCount >= MAX_MSG) { toast('보낼 수 있는 메시지를 모두 사용했어요'); return; }
+  if (Date.now() - lastSend < SEND_COOLDOWN) { toast('잠시 후 다시 보내 주세요'); return; }
+  lastSend = Date.now();
+  const btn = $('sendBtn'); btn.disabled = true;
+  const { data, error } = await sb.rpc('send_message', { p_room: room.id, p_client: clientId, p_body: body });
+  btn.disabled = false;
+  if (error) {
+    const t = error.message || '';
+    if (t.includes('message_limit_user')) { myCount = MAX_MSG; updateQuota(); toast('보낼 수 있는 메시지를 모두 사용했어요'); }
+    else if (t.includes('message_limit_month')) toast('이번 달 채팅 한도에 도달했어요. 운영자에게 문의해 주세요.', 4000);
+    else if (t.includes('not_participant') || t.includes('room_closed')) beat();
+    else toast('전송에 실패했어요. 다시 시도해 주세요');
+    return;
+  }
+  input.value = ''; myCount++; updateQuota();
+  addMsg({ id: data.id, sender: 'user', nick: data.nick, body, mine: true });
+  channel.send({ type: 'broadcast', event: 'msg', payload: { id: data.id, s: 'user', n: data.nick, b: body } });
+});
+
+// ---- 4) 사진: 1MB 미만으로 자동 축소 후 업로드 (운영자에게만 전달) ----
+async function toBitmap(file) {
+  try { return await createImageBitmap(file, { imageOrientation: 'from-image' }); }
+  catch (_) {
+    return await new Promise((res, rej) => {
+      const url = URL.createObjectURL(file); const img = new Image();
+      img.onload = () => { URL.revokeObjectURL(url); res(img); };
+      img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('decode')); };
+      img.src = url;
+    });
+  }
+}
+async function toJpeg(bmp, maxEdge, maxBytes, q) {
+  const w0 = bmp.width, h0 = bmp.height;
+  let scale = Math.min(1, maxEdge / Math.max(w0, h0));
+  for (let i = 0; i < 14; i++) {
+    const w = Math.max(1, Math.round(w0 * scale)), h = Math.max(1, Math.round(h0 * scale));
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, w, h); x.drawImage(bmp, 0, 0, w, h);
+    const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', q));
+    if (blob && blob.size <= maxBytes) return blob;
+    if (q > 0.5) q -= 0.1; else scale *= 0.85;
+  }
+  throw new Error('compress');
+}
+
+$('file').addEventListener('change', async (e) => {
+  const f = e.target.files && e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  if (photoCount >= MAX_PHOTO) { toast(`사진은 ${MAX_PHOTO}장까지 보낼 수 있어요`); return; }
+  if (!/^image\//.test(f.type)) { toast('이미지 파일만 보낼 수 있어요'); return; }
+  $('photoBtn').classList.add('off'); toast('사진을 줄여서 보내는 중…', 15000);
+  try {
+    const bmp = await toBitmap(f);
+    const main = await toJpeg(bmp, 1920, MAX_PHOTO_BYTES, 0.85);
+    const thumb = await toJpeg(bmp, 320, THUMB_BYTES, 0.7);
+    if (bmp.close) bmp.close();
+    const base = `${room.id}/${clientId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const opt = { contentType: 'image/jpeg', cacheControl: '3600', upsert: false };
+    const bk = sb.storage.from('photos');
+    let r = await bk.upload(`${base}_t.jpg`, thumb, opt); if (r.error) throw r.error;
+    r = await bk.upload(`${base}.jpg`, main, opt); if (r.error) throw r.error;
+    const reg = await sb.rpc('register_photo', {
+      p_room: room.id, p_client: clientId, p_path: `${base}.jpg`, p_thumb: `${base}_t.jpg`, p_size: main.size, p_tsize: thumb.size
+    });
+    if (reg.error) throw reg.error;
+    photoCount++; store.set(`pc:${room.id}:${clientId}`, String(photoCount)); updateQuota();
+    toast('사진이 운영자에게 전달되었어요 (다른 사람에게는 보이지 않아요)', 3500);
+  } catch (err) {
+    const t = (err && err.message) || '';
+    if (t.includes('photo_limit')) { photoCount = MAX_PHOTO; store.set(`pc:${room.id}:${clientId}`, String(MAX_PHOTO)); toast(`사진은 ${MAX_PHOTO}장까지 보낼 수 있어요`); }
+    else if (/row-level security|violates|not_participant|room_closed|Unauthorized/i.test(t)) beat();
+    else toast('사진 전송에 실패했어요. 다시 시도해 주세요', 3500);
+  } finally { updateQuota(); }
+});
+
+// ---- 5) 종료 ----
+function end(title, msg) {
+  if (left) return; left = true; clearInterval(hb);
+  try { if (channel) sb.removeChannel(channel); } catch (_) {}
+  $('endTitle').textContent = title; $('endMsg').textContent = msg;
+  show('ended');
+}
+$('leaveBtn').onclick = async () => {
+  if (!confirm('대화를 종료하고 나갈까요?')) return;
+  try { await sb.rpc('leave_room', { p_room: room.id, p_client: clientId }); } catch (_) {}
+  end('대화가 종료되었어요', '참여해 주셔서 감사합니다. 이 창을 닫아 주세요.');
+  setTimeout(() => { try { window.close(); } catch (_) {} }, 300);
+};
+
+start();
+})();
+</script>
+</body>
+</html>

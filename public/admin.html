@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1920">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<title>채팅 운영자</title>
+<link rel="icon" href="data:,">
+<style>
+:root{--bg:#eef1f6;--card:#fff;--ink:#1b2430;--mute:#6b7685;--line:#e3e8ef;--accent:#2f6df6;--ok:#12945a;--warn:#d98a00;--danger:#d92d20}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+body{font:15px/1.45 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;color:var(--ink);background:var(--bg);min-width:1600px;overflow:hidden}
+button,input,textarea{font:inherit;color:inherit}
+.btn{white-space:nowrap;flex-shrink:0;min-height:38px;border:0;border-radius:9px;background:var(--accent);color:#fff;font-weight:600;padding:0 16px;cursor:pointer}
+.btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.btn.danger{background:var(--danger)}
+.btn.sm{min-height:30px;padding:0 10px;font-size:13px}
+.btn:disabled{opacity:.5;cursor:default}
+.field{height:38px;width:100%;border:1px solid var(--line);border-radius:9px;padding:0 12px;background:#fff;outline:none}
+.field:focus{border-color:var(--accent)}
+.mute{color:var(--mute)}
+/* login / setup */
+.gate{height:100vh;display:grid;place-items:center}
+.gate .box{width:380px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:28px;display:flex;flex-direction:column;gap:12px}
+.gate h1{margin:0 0 4px;font-size:22px}
+.err{color:var(--danger);font-size:13px;min-height:18px}
+/* layout */
+header{height:60px;background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;padding:0 20px}
+header h1{font-size:19px;margin:0;flex:1}
+.badge{padding:4px 12px;border-radius:999px;font-size:13px;font-weight:700;background:#e9edf3;color:var(--mute)}
+.badge.open{background:#e3f6ec;color:var(--ok)}
+.grid{--lw:400px;display:grid;grid-template-columns:var(--lw) minmax(0,1fr) 620px;gap:16px;padding:16px;height:calc(100vh - 60px);transition:grid-template-columns .2s}
+.grid.collapsed{--lw:48px}
+.col{min-height:0;display:flex;flex-direction:column;gap:16px;overflow:hidden}
+.tgl{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-shrink:0}
+.tgl b{font-size:13px;color:var(--mute)}
+.tgl button{width:40px;height:34px;border:1px solid var(--line);background:#fff;border-radius:9px;font-size:16px;cursor:pointer;flex-shrink:0}
+.grid.collapsed .tgl b,.grid.collapsed #leftBody{display:none}
+#leftBody{display:flex;flex-direction:column;gap:16px;min-height:0;overflow-y:auto}
+.mid{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:16px;min-height:0}
+.mid>.card{min-height:0;height:100%}
+/* participants */
+.ppl{padding:0;overflow:hidden}
+.ppl .head{padding:14px 16px;border-bottom:1px solid var(--line)}
+#plist{flex:1;overflow-y:auto;padding:8px 10px;display:flex;flex-direction:column;gap:6px}
+.pr{display:flex;align-items:center;gap:8px;padding:8px 8px 8px 10px;border:1px solid var(--line);border-radius:10px;background:#fff}
+.pr .d{width:9px;height:9px;border-radius:50%;background:#c3cad5;flex-shrink:0}
+.pr.on .d{background:#22c55e}
+.pr .t{flex:1;min-width:0}
+.pr .t b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pr .t span{font-size:11px;color:var(--mute)}
+.pr.kicked{opacity:.55}
+.pr .btn{min-height:28px;padding:0 9px;font-size:12px;background:#fff;color:var(--danger);border:1px solid var(--line)}
+/* qr overlay */
+#qr{position:fixed;inset:0;z-index:40;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2vh;padding:2vh 2vw;text-align:center;cursor:pointer}
+#qr h2{margin:0;font-size:clamp(28px,4.5vh,56px)}
+#qr .qrbox{width:min(74vh,86vw);height:min(74vh,86vw)}
+#qr .qrbox svg{width:100%;height:100%;display:block}
+#qr .url{font-size:clamp(16px,2.6vh,30px);color:#444;word-break:break-all}
+#qr .hint{font-size:clamp(13px,2vh,22px);color:var(--mute)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:12px}
+.card h2{margin:0;font-size:16px}
+.card .head{display:flex;align-items:center;gap:8px}
+.card .head h2{flex:1}
+/* room */
+.link{display:flex;gap:6px}
+.link input{font-size:13px;height:34px}
+.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mute)}
+/* usage */
+.meter{display:flex;flex-direction:column;gap:5px}
+.meter .l{display:flex;justify-content:space-between;font-size:13px}
+.meter .l b{font-weight:700}
+.bar{height:12px;background:#e9edf3;border-radius:999px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--ok);border-radius:999px;transition:width .4s}
+.bar i.warn{background:var(--warn)}
+.bar i.bad{background:var(--danger)}
+.meter small{font-size:12px;color:var(--mute)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+/* chat */
+.chat{min-height:0;padding:0;overflow:hidden}
+.chat .head{padding:14px 18px;border-bottom:1px solid var(--line)}
+#list{flex:1;overflow-y:auto;padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+.m{display:flex;flex-direction:column;max-width:70%}
+.m.admin{align-self:flex-end;align-items:flex-end}
+.m .who{font-size:12px;color:var(--mute);margin:0 4px 2px}
+.m .b{padding:9px 14px;border-radius:14px;background:#f2f4f8;border:1px solid var(--line);white-space:pre-wrap;word-break:break-word}
+.m.admin .b{background:var(--accent);border-color:var(--accent);color:#fff}
+.empty{margin:auto;color:var(--mute);text-align:center}
+.composer{display:flex;gap:10px;padding:12px 16px;border-top:1px solid var(--line)}
+.composer textarea{flex:1;height:56px;resize:none;border:1px solid var(--line);border-radius:10px;padding:10px 12px;outline:none}
+.composer textarea:focus{border-color:var(--accent)}
+.composer .btn{height:56px;min-width:84px}
+/* gallery */
+.gal{flex:1;min-height:0;padding:0;overflow:hidden}
+.gal .head{padding:14px 18px;border-bottom:1px solid var(--line)}
+#grid{flex:1;overflow-y:auto;padding:14px 16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;align-content:start}
+.th{position:relative;aspect-ratio:1;border-radius:10px;overflow:hidden;background:#e9edf3;cursor:pointer;border:1px solid var(--line)}
+.th img{width:100%;height:100%;object-fit:cover;display:block}
+.th span{position:absolute;left:0;right:0;bottom:0;padding:14px 6px 4px;font-size:11px;color:#fff;background:linear-gradient(transparent,rgba(0,0,0,.65));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* lightbox */
+#lb{position:fixed;inset:0;background:rgba(10,14,20,.88);z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:20px}
+#lb img{max-width:92vw;max-height:80vh;border-radius:8px;background:#222}
+#lb .bar2{display:flex;gap:10px;align-items:center;color:#dfe5ee}
+#lb .nav{position:absolute;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.14);border:0;color:#fff;font-size:28px;width:54px;height:80px;border-radius:12px;cursor:pointer}
+#lb .nav.l{left:20px}#lb .nav.r{right:20px}
+#toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#1b2430;color:#fff;padding:10px 18px;border-radius:10px;z-index:30;font-size:14px}
+</style>
+</head>
+<body>
+
+<div class="gate" id="setup" hidden><div class="box"><h1>설정이 필요합니다</h1><p class="mute">config.js 에 Supabase 주소와 키를 입력해 주세요.</p></div></div>
+
+<div class="gate" id="login" hidden>
+  <form class="box" id="loginForm">
+    <h1>운영자 로그인</h1>
+    <input class="field" id="email" type="email" placeholder="이메일" autocomplete="username" required>
+    <input class="field" id="pw" type="password" placeholder="비밀번호" autocomplete="current-password" required>
+    <div class="err" id="loginErr"></div>
+    <button class="btn" type="submit" style="height:42px">로그인</button>
+  </form>
+</div>
+
+<div id="app" hidden>
+  <header>
+    <h1>채팅 운영자</h1>
+    <span class="badge" id="badge">닫힘</span>
+    <button class="btn ghost sm" id="logout" type="button">로그아웃</button>
+  </header>
+  <div class="grid" id="layout">
+    <!-- 왼쪽: 채팅방 / 사용량 (화살표로 접기/펼치기) -->
+    <aside class="col">
+      <div class="tgl"><b>채팅방 · 사용량</b><button id="leftToggle" type="button" title="왼쪽 메뉴 접기/펼치기" aria-label="왼쪽 메뉴 접기/펼치기">◀</button></div>
+      <div id="leftBody">
+      <section class="card" id="roomCard">
+        <h2>채팅방</h2>
+        <div id="createBox">
+          <input class="field" id="gname" maxlength="50" placeholder="단체 이름을 입력하세요" style="margin-bottom:10px">
+          <button class="btn" id="openBtn" type="button" style="width:100%">채팅방 열기</button>
+          <p class="mute" style="font-size:12px;margin:8px 0 0">열 때마다 접속 링크가 새로 만들어집니다.</p>
+        </div>
+        <div id="liveBox" hidden>
+          <div style="font-size:17px;font-weight:700" id="rname"></div>
+          <div class="mute" style="font-size:12px;margin:2px 0 8px">접속 링크 (사용자에게 공유)</div>
+          <div class="link"><input class="field" id="rlink" readonly><button class="btn sm" id="copyBtn" type="button">복사</button></div>
+          <button class="btn ghost" id="qrBtn" type="button" style="width:100%;margin-top:8px">QR 보이기 (전체화면)</button>
+          <label class="check" style="margin:12px 0 8px"><input type="checkbox" id="delOnClose" checked> 종료할 때 사진도 함께 삭제</label>
+          <button class="btn danger" id="closeBtn" type="button" style="width:100%">채팅 종료 (모든 채팅 삭제)</button>
+        </div>
+      </section>
+
+      <section class="card" id="usageCard">
+        <div class="head"><h2>무료 플랜 사용량</h2><button class="btn ghost sm" id="refreshBtn" type="button">새로고침</button></div>
+        <div class="meter"><div class="l"><span>전송량 (한도 5GB = 100%)</span><b id="egT">-</b></div><div class="bar"><i id="egB"></i></div><small id="egS"></small></div>
+        <div class="meter"><div class="l"><span>사진 저장 용량 (한도 1GB)</span><b id="stT">-</b></div><div class="bar"><i id="stB"></i></div><small id="stS"></small></div>
+        <div class="meter"><div class="l"><span>실시간 메시지 (월 200만 건)</span><b id="rtT">-</b></div><div class="bar"><i id="rtB"></i></div><small id="rtS"></small></div>
+        <div class="actions">
+          <button class="btn danger" id="wipeBtn" type="button">사진 일괄 삭제</button>
+          <button class="btn ghost sm" id="resetBtn" type="button" style="align-self:center">카운터 초기화</button>
+        </div>
+        <small class="mute">전송량·메시지는 앱에서 계산한 추정치입니다. 정확한 값은 Supabase 대시보드 &gt; Usage 에서 확인하세요.</small>
+      </section>
+      </div>
+    </aside>
+
+    <!-- 가운데: 채팅 + 접속자 -->
+    <div class="mid">
+      <section class="card chat">
+        <div class="head"><h2>채팅 <span class="mute" id="chatCnt" style="font-weight:400;font-size:13px"></span></h2></div>
+        <div id="list"><div class="empty" id="emptyChat">채팅방을 열면 대화가 여기에 표시됩니다.</div></div>
+        <form class="composer" id="sendForm">
+          <textarea id="say" maxlength="300" placeholder="운영자 메시지 (Enter 전송, Shift+Enter 줄바꿈)" disabled></textarea>
+          <button class="btn" id="sayBtn" type="submit" disabled>전송</button>
+        </form>
+      </section>
+      <section class="card ppl">
+        <div class="head"><h2>접속자 <span class="mute" id="pCnt" style="font-weight:400;font-size:13px"></span></h2></div>
+        <div id="plist"><div class="empty" id="pEmpty">채팅방을 열면 입장한 사람이 여기에 표시됩니다.</div></div>
+      </section>
+    </div>
+
+    <!-- 오른쪽: 사진 모아보기 -->
+    <section class="card gal">
+      <div class="head"><h2>사용자 사진 <span class="mute" id="photoCnt" style="font-weight:400;font-size:13px"></span></h2></div>
+      <div id="grid"></div>
+    </section>
+  </div>
+</div>
+
+<div id="qr" hidden title="클릭하거나 Esc 로 닫기">
+  <h2 id="qrName"></h2>
+  <div class="qrbox" id="qrBox"></div>
+  <div class="url" id="qrUrl"></div>
+  <div class="hint">휴대폰 카메라로 스캔하세요 · 화면을 누르거나 Esc 를 누르면 닫힙니다</div>
+</div>
+
+<div id="lb" hidden>
+  <button class="nav l" id="lbPrev" type="button">‹</button>
+  <img id="lbImg" alt="">
+  <button class="nav r" id="lbNext" type="button">›</button>
+  <div class="bar2"><span id="lbInfo"></span><button class="btn danger sm" id="lbDel" type="button">삭제</button><button class="btn ghost sm" id="lbClose" type="button">닫기 (Esc)</button></div>
+</div>
+<div id="toast" hidden></div>
+
+<script src="/config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+(() => {
+'use strict';
+const C = window.APP_CONFIG || {};
+const $ = (id) => document.getElementById(id);
+const LIM = { egress: 5e9, storage: 1e9 };   // 무료 플랜 한도 (5GB / 1GB)
+
+if (!C.SUPABASE_URL || /YOUR/.test(C.SUPABASE_URL) || !C.SUPABASE_ANON_KEY || /YOUR/.test(C.SUPABASE_ANON_KEY)) {
+  $('setup').hidden = false; return;
+}
+const sb = supabase.createClient(C.SUPABASE_URL, C.SUPABASE_ANON_KEY);
+
+let room = null, chan = null, photoChan = null, photos = [], usage = null, pend = 0, lbIdx = -1;
+const seen = new Set(), counted = new Set();
+
+// ---------- 유틸 ----------
+function toast(t, ms = 2600) { const e = $('toast'); e.textContent = t; e.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => { e.hidden = true; }, ms); }
+function fmtB(n) { if (n < 1e3) return n + ' B'; if (n < 1e6) return (n / 1e3).toFixed(1) + ' KB'; if (n < 1e9) return (n / 1e6).toFixed(1) + ' MB'; return (n / 1e9).toFixed(2) + ' GB'; }
+function pct(a, b) { return Math.min(999, (a / b) * 100); }
+function newToken() { const a = 'abcdefghijklmnopqrstuvwxyz0123456789'; const b = new Uint8Array(14); crypto.getRandomValues(b); return Array.from(b, (x) => a[x % 36]).join(''); }
+function hhmm(iso) { const d = iso ? new Date(iso) : new Date(); return d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }); }
+
+// ---------- 로그인 ----------
+async function boot() {
+  const { data } = await sb.auth.getSession();
+  if (data.session) enterApp(); else { $('login').hidden = false; $('app').hidden = true; }
+}
+$('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault(); $('loginErr').textContent = '';
+  const { error } = await sb.auth.signInWithPassword({ email: $('email').value.trim(), password: $('pw').value });
+  if (error) { $('loginErr').textContent = '로그인 실패: 이메일/비밀번호를 확인하세요'; return; }
+  $('pw').value = ''; enterApp();
+});
+$('logout').onclick = async () => { await flushEgress(); await sb.auth.signOut(); location.reload(); };
+
+async function enterApp() {
+  $('login').hidden = true; $('app').hidden = false;
+  subscribePhotos();
+  await Promise.all([loadOpenRoom(), loadPhotos(), refreshUsage()]);
+  setInterval(refreshUsage, 20000);
+  setInterval(flushEgress, 10000);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) flushEgress(); });
+}
+
+// ---------- 채팅방 ----------
+function renderRoom() {
+  const on = !!room;
+  $('createBox').hidden = on; $('liveBox').hidden = !on;
+  $('badge').textContent = on ? '열림' : '닫힘'; $('badge').classList.toggle('open', on);
+  $('say').disabled = !on; $('sayBtn').disabled = !on;
+  if (on) { $('rname').textContent = room.name; $('rlink').value = `${location.origin}/c/${room.token}`; }
+}
+async function loadOpenRoom() {
+  const { data } = await sb.from('rooms').select('*').eq('status', 'open').limit(1);
+  if (data && data[0]) await enterRoom(data[0]); else renderRoom();
+}
+$('openBtn').onclick = async () => {
+  const name = $('gname').value.trim();
+  if (!name) { toast('단체 이름을 입력하세요'); $('gname').focus(); return; }
+  $('openBtn').disabled = true;
+  const { data, error } = await sb.from('rooms').insert({ name, token: newToken() }).select().single();
+  $('openBtn').disabled = false;
+  if (error) { toast('채팅방을 열지 못했습니다: ' + (error.message || '')); return; }
+  $('gname').value = ''; await enterRoom(data); toast('채팅방이 열렸습니다. 링크를 공유하세요.');
+};
+async function enterRoom(r) {
+  room = r; renderRoom(); clearChat();
+  chan = sb.channel('room:' + room.id, { config: { broadcast: { self: false } } })
+    .on('broadcast', { event: 'msg' }, ({ payload }) => {
+      if (!payload || seen.has(payload.id)) return;
+      addMsg({ id: payload.id, sender: payload.s, nick: payload.n, body: payload.b });
+    })
+    .subscribe(async (st) => { if (st === 'SUBSCRIBED') await loadMessages(); });
+  startPeople();
+}
+async function loadMessages() {
+  const { data } = await sb.from('messages').select('id,sender,nickname,body,created_at').eq('room_id', room.id).order('id').limit(500);
+  (data || []).forEach((m) => addMsg({ id: m.id, sender: m.sender, nick: m.nickname, body: m.body, t: m.created_at }));
+}
+function clearChat() { seen.clear(); $('list').replaceChildren(); const d = document.createElement('div'); d.className = 'empty'; d.id = 'emptyChat'; d.textContent = '아직 메시지가 없습니다.'; $('list').append(d); $('chatCnt').textContent = ''; }
+function addMsg(m) {
+  if (m.id != null) { if (seen.has(m.id)) return; seen.add(m.id); }
+  const list = $('list'); const e = $('emptyChat'); if (e) e.remove();
+  const near = list.scrollHeight - list.scrollTop - list.clientHeight < 160;
+  const admin = m.sender === 'admin';
+  const row = document.createElement('div'); row.className = 'm' + (admin ? ' admin' : '');
+  const who = document.createElement('div'); who.className = 'who'; who.textContent = `${admin ? '운영자' : m.nick} · ${hhmm(m.t)}`;
+  const b = document.createElement('div'); b.className = 'b'; b.textContent = m.body;
+  row.append(who, b); list.append(row);
+  while (list.children.length > 600) list.firstChild.remove();
+  $('chatCnt').textContent = `· 메시지 ${seen.size}개`;
+  if (near || admin) list.scrollTop = list.scrollHeight;
+}
+$('sendForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const body = $('say').value.trim(); if (!body || !room) return;
+  $('sayBtn').disabled = true;
+  const { data, error } = await sb.from('messages').insert({ room_id: room.id, sender: 'admin', nickname: '운영자', body }).select('id,created_at').single();
+  $('sayBtn').disabled = false;
+  if (error) { toast('전송 실패: ' + (error.message || '')); return; }
+  $('say').value = '';
+  addMsg({ id: data.id, sender: 'admin', nick: '운영자', body, t: data.created_at });
+  chan.send({ type: 'broadcast', event: 'msg', payload: { id: data.id, s: 'admin', n: '운영자', b: body } });
+  refreshUsage();
+});
+$('say').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('sendForm').requestSubmit(); } });
+$('copyBtn').onclick = async () => {
+  try { await navigator.clipboard.writeText($('rlink').value); toast('링크를 복사했습니다'); }
+  catch (_) { $('rlink').select(); toast('Ctrl+C 로 복사하세요'); }
+};
+$('closeBtn').onclick = async () => {
+  if (!room) return;
+  const delPhotos = $('delOnClose').checked;
+  if (!confirm(`'${room.name}' 채팅을 종료합니다.\n모든 채팅이 삭제됩니다${delPhotos ? ' (사진도 함께 삭제)' : ''}.\n계속할까요?`)) return;
+  $('closeBtn').disabled = true;
+  const { error } = await sb.rpc('close_room', { p_room: room.id });
+  $('closeBtn').disabled = false;
+  if (error) { toast('종료 실패: ' + (error.message || '')); return; }
+  try { await chan.send({ type: 'broadcast', event: 'closed', payload: {} }); } catch (_) {}
+  try { await sb.removeChannel(chan); } catch (_) {}
+  stopPeople(); closeQr();
+  chan = null; room = null; renderRoom();
+  $('list').replaceChildren(); const d = document.createElement('div'); d.className = 'empty'; d.id = 'emptyChat'; d.textContent = '채팅이 종료되어 모든 대화가 삭제되었습니다.'; $('list').append(d);
+  $('chatCnt').textContent = '';
+  if (delPhotos) await wipePhotos(true);
+  refreshUsage(); toast('채팅을 종료했습니다');
+};
+
+// ---------- 왼쪽 메뉴 접기/펼치기 ----------
+function setCollapsed(c) {
+  $('layout').classList.toggle('collapsed', c);
+  $('leftToggle').textContent = c ? '▶' : '◀';
+  try { localStorage.setItem('leftCollapsed', c ? '1' : '0'); } catch (_) {}
+}
+$('leftToggle').onclick = () => setCollapsed(!$('layout').classList.contains('collapsed'));
+try { if (localStorage.getItem('leftCollapsed') === '1') setCollapsed(true); } catch (_) {}
+
+// ---------- 접속자 목록 / 내보내기 ----------
+let people = [], peopleT = null;
+const POLL_MS = 8000;
+function startPeople() { stopPeople(); loadPeople(); peopleT = setInterval(() => { if (!document.hidden) loadPeople(); }, POLL_MS); }
+function stopPeople() {
+  clearInterval(peopleT); peopleT = null; people = [];
+  $('pCnt').textContent = ''; const pl = $('plist'); pl.replaceChildren();
+  const e = document.createElement('div'); e.className = 'empty'; e.id = 'pEmpty'; e.textContent = '채팅방을 열면 입장한 사람이 여기에 표시됩니다.'; pl.append(e);
+}
+async function loadPeople() {
+  if (!room) return;
+  const { data, error } = await sb.rpc('get_participants', { p_room: room.id });
+  if (error || !Array.isArray(data)) return;
+  pend += JSON.stringify(data).length;            // 전송량 추정에 반영
+  people = data; renderPeople();
+}
+function renderPeople() {
+  const pl = $('plist'); pl.replaceChildren();
+  const online = people.filter((p) => p.online).length;
+  $('pCnt').textContent = `· 접속 ${online}명 / 전체 ${people.length}명`;
+  if (!people.length) {
+    const e = document.createElement('div'); e.className = 'empty'; e.textContent = '아직 입장한 사람이 없습니다.'; pl.append(e); return;
+  }
+  for (const p of people) {
+    const row = document.createElement('div');
+    row.className = 'pr' + (p.online ? ' on' : '') + (p.status === 'kicked' ? ' kicked' : '');
+    const d = document.createElement('i'); d.className = 'd';
+    const t = document.createElement('div'); t.className = 't';
+    const b = document.createElement('b'); b.textContent = p.name;
+    const s = document.createElement('span');
+    s.textContent = `${p.affiliation} · ` + (p.status === 'kicked' ? '내보냄' : p.status === 'left' ? '나감' : p.online ? '접속중' : '연결 끊김');
+    t.append(b, s); row.append(d, t);
+    if (p.status !== 'kicked') {
+      const k = document.createElement('button'); k.type = 'button'; k.className = 'btn'; k.textContent = '내보내기';
+      k.onclick = () => kick(p);
+      row.append(k);
+    }
+    pl.append(row);
+  }
+}
+async function kick(p) {
+  if (!room) return;
+  if (!confirm(`'${p.affiliation} · ${p.name}' 님을 채팅에서 내보낼까요?\n같은 소속·이름으로는 다시 입장할 수 없습니다.`)) return;
+  const { error } = await sb.rpc('kick_participant', { p_room: room.id, p_client: p.client_id });
+  if (error) { toast('내보내기 실패: ' + (error.message || '')); return; }
+  try { await chan.send({ type: 'broadcast', event: 'kick', payload: { c: p.client_id } }); } catch (_) {}
+  toast(`${p.name} 님을 내보냈습니다`); loadPeople(); refreshUsageSoon();
+}
+
+// ---------- QR 전체화면 ----------
+let qrLoading = null;
+function loadQrLib() {
+  if (window.qrcode) return Promise.resolve();
+  if (qrLoading) return qrLoading;
+  qrLoading = new Promise((res, rej) => {
+    const s = document.createElement('script'); s.src = '/qrcode.js'; s.onload = res; s.onerror = () => { qrLoading = null; rej(new Error('qr')); };
+    document.head.append(s);
+  });
+  return qrLoading;
+}
+function qrSvg(text) {
+  const q = window.qrcode(0, 'M'); q.addData(text); q.make();
+  const n = q.getModuleCount(), m = 4; let d = '';
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) d += `M${c + m},${r + m}h1v1h-1z`;
+  const size = n + m * 2;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" shape-rendering="crispEdges"><rect width="${size}" height="${size}" fill="#fff"/><path d="${d}" fill="#000"/></svg>`;
+}
+async function openQr() {
+  if (!room) return;
+  const url = $('rlink').value;
+  try { await loadQrLib(); } catch (_) { toast('QR 라이브러리를 불러오지 못했습니다'); return; }
+  $('qrName').textContent = room.name; $('qrUrl').textContent = url; $('qrBox').innerHTML = qrSvg(url);
+  $('qr').hidden = false;
+  try { if ($('qr').requestFullscreen && !document.fullscreenElement) await $('qr').requestFullscreen(); } catch (_) {}
+}
+function closeQr() {
+  if ($('qr').hidden) return;
+  $('qr').hidden = true;
+  try { if (document.fullscreenElement) document.exitFullscreen(); } catch (_) {}
+}
+$('qrBtn').onclick = openQr;
+$('qr').addEventListener('click', closeQr);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeQr(); });
+document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement) $('qr').hidden = true; });
+
+// ---------- 사진 모아보기 ----------
+function subscribePhotos() {
+  photoChan = sb.channel('admin-photos')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'photos' }, async (p) => {
+      const ph = p.new; if (photos.some((x) => x.id === ph.id)) return;
+      await signThumbs([ph]); photos.unshift(ph); addThumb(ph, true); updatePhotoCnt(); refreshUsageSoon();
+    })
+    .subscribe();
+}
+async function loadPhotos() {
+  const { data, error } = await sb.from('photos').select('*').order('id', { ascending: false }).limit(1000);
+  if (error) { toast('사진 목록을 불러오지 못했습니다'); return; }
+  photos = data || [];
+  for (let i = 0; i < photos.length; i += 200) await signThumbs(photos.slice(i, i + 200));
+  renderGrid();
+}
+async function signThumbs(list) {
+  if (!list.length) return;
+  const { data } = await sb.storage.from('photos').createSignedUrls(list.map((p) => p.thumb_path), 3600);
+  const map = new Map((data || []).map((d) => [d.path, d.signedUrl]));
+  list.forEach((p) => { p._thumb = map.get(p.thumb_path) || null; });
+}
+function renderGrid() {
+  const g = $('grid'); g.replaceChildren();
+  photos.forEach((p) => addThumb(p, false));
+  updatePhotoCnt();
+}
+function addThumb(p, prepend) {
+  const el = document.createElement('div'); el.className = 'th'; el.dataset.id = p.id;
+  const img = document.createElement('img'); img.loading = 'lazy'; img.decoding = 'async'; img.alt = '';
+  if (p._thumb) img.src = p._thumb;
+  img.onload = () => countBytes('t' + p.id, p.thumb_bytes);
+  const cap = document.createElement('span'); cap.textContent = `${p.nickname} · ${hhmm(p.created_at)}`;
+  el.append(img, cap);
+  el.onclick = () => openLb(photos.findIndex((x) => x.id === p.id));
+  if (prepend) $('grid').prepend(el); else $('grid').append(el);
+}
+function updatePhotoCnt() { $('photoCnt').textContent = `· ${photos.length}장`; }
+
+// ---------- 확대 보기 / 삭제 ----------
+async function openLb(i) {
+  if (i < 0 || i >= photos.length) return;
+  lbIdx = i; const p = photos[i];
+  $('lb').hidden = false; $('lbImg').removeAttribute('src');
+  $('lbInfo').textContent = `${p.nickname} · ${hhmm(p.created_at)} · ${fmtB(p.size_bytes)} · ${i + 1}/${photos.length}`;
+  const { data, error } = await sb.storage.from('photos').createSignedUrl(p.path, 3600);
+  if (lbIdx !== i) return;
+  if (error || !data) { toast('원본을 불러오지 못했습니다'); return; }
+  $('lbImg').onload = () => countBytes('o' + p.id, p.size_bytes);
+  $('lbImg').src = data.signedUrl;
+}
+function closeLb() { $('lb').hidden = true; lbIdx = -1; $('lbImg').removeAttribute('src'); }
+$('lbClose').onclick = closeLb;
+$('lbPrev').onclick = () => openLb(lbIdx - 1);
+$('lbNext').onclick = () => openLb(lbIdx + 1);
+$('lb').addEventListener('click', (e) => { if (e.target === $('lb')) closeLb(); });
+document.addEventListener('keydown', (e) => {
+  if ($('lb').hidden) return;
+  if (e.key === 'Escape') closeLb(); else if (e.key === 'ArrowLeft') openLb(lbIdx - 1); else if (e.key === 'ArrowRight') openLb(lbIdx + 1);
+});
+$('lbDel').onclick = async () => {
+  const p = photos[lbIdx]; if (!p) return;
+  if (!confirm('이 사진을 삭제할까요? 되돌릴 수 없습니다.')) return;
+  const r1 = await sb.storage.from('photos').remove([p.path, p.thumb_path]);
+  if (r1.error) { toast('파일 삭제 실패'); return; }
+  const r2 = await sb.from('photos').delete().eq('id', p.id);
+  if (r2.error) { toast('기록 삭제 실패'); return; }
+  const idx = lbIdx; photos.splice(idx, 1); renderGrid(); refreshUsage();
+  if (photos.length) openLb(Math.min(idx, photos.length - 1)); else closeLb();
+  toast('삭제했습니다');
+};
+
+// ---------- 일괄 삭제 ----------
+async function listAll(prefix) {
+  const out = [];
+  const { data, error } = await sb.storage.from('photos').list(prefix, { limit: 1000 });
+  if (error) throw error;
+  for (const it of data || []) {
+    const p = prefix ? `${prefix}/${it.name}` : it.name;
+    if (it.id === null) out.push(...(await listAll(p))); else out.push(p);
+  }
+  return out;
+}
+async function wipePhotos(silent) {
+  const btn = $('wipeBtn'); btn.disabled = true; const old = btn.textContent; btn.textContent = '삭제 중…';
+  try {
+    const files = await listAll('');
+    for (let i = 0; i < files.length; i += 100) {
+      const r = await sb.storage.from('photos').remove(files.slice(i, i + 100));
+      if (r.error) throw r.error;
+    }
+    const d = await sb.from('photos').delete().gt('id', 0);
+    if (d.error) throw d.error;
+    photos = []; counted.clear(); renderGrid(); closeLb();
+    if (!silent) toast(`사진 ${files.length}개 파일을 삭제했습니다`);
+  } catch (err) { toast('일괄 삭제 중 오류: ' + ((err && err.message) || '')); }
+  finally { btn.disabled = false; btn.textContent = old; refreshUsage(); }
+}
+$('wipeBtn').onclick = async () => {
+  const st = usage ? fmtB(usage.storage_bytes) : '';
+  if (!confirm(`업로드된 모든 사진(${photos.length}장${st ? ', ' + st : ''})을 삭제합니다.\n되돌릴 수 없습니다. 계속할까요?`)) return;
+  await wipePhotos(false);
+};
+
+// ---------- 사용량 ----------
+function countBytes(key, bytes) { if (counted.has(key)) return; counted.add(key); pend += bytes; renderUsage(); }
+async function flushEgress() {
+  if (pend <= 0) return; const b = pend; pend = 0;
+  const { error } = await sb.rpc('add_egress', { p_bytes: b });
+  if (error) pend += b;
+}
+let usageT = null; function refreshUsageSoon() { clearTimeout(usageT); usageT = setTimeout(refreshUsage, 1500); }
+async function refreshUsage() {
+  await flushEgress();
+  const { data, error } = await sb.rpc('get_usage');
+  if (error || !data) return;
+  usage = data; renderUsage();
+}
+function meter(bar, textEl, subEl, used, limit, sub) {
+  const p = pct(used, limit);
+  $(textEl).textContent = p.toFixed(1) + '%';
+  const b = $(bar); b.style.width = Math.min(100, p) + '%'; b.className = p >= 90 ? 'bad' : p >= 70 ? 'warn' : '';
+  $(subEl).textContent = sub;
+}
+function renderUsage() {
+  if (!usage) return;
+  const eg = usage.egress_bytes + pend;
+  meter('egB', 'egT', 'egS', eg, LIM.egress, `${fmtB(eg)} / 5 GB · ${usage.month} 누적`);
+  meter('stB', 'stT', 'stS', usage.storage_bytes, LIM.storage, `${fmtB(usage.storage_bytes)} / 1 GB · 현재 저장 중`);
+  meter('rtB', 'rtT', 'rtS', usage.rt_messages, usage.rt_limit, `${usage.rt_messages.toLocaleString()} / ${Number(usage.rt_limit).toLocaleString()} 건 (수신자 포함 추정)`);
+}
+$('refreshBtn').onclick = refreshUsage;
+$('resetBtn').onclick = async () => {
+  if (!confirm('이번 달 전송량·메시지 추정 카운터를 0으로 초기화합니다.\n(Supabase 결제 주기가 바뀌었을 때만 사용하세요) 계속할까요?')) return;
+  const { error } = await sb.rpc('reset_usage'); if (error) { toast('초기화 실패'); return; }
+  pend = 0; refreshUsage();
+};
+
+boot();
+})();
+</script>
+</body>
+</html>
