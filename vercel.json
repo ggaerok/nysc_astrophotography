@@ -6,7 +6,7 @@
   "cleanUrls": true,
   "trailingSlash": false,
   "rewrites": [
-    { "source": "/c/:token", "destination": "/user.html" }
+    { "source": "/c/:token", "destination": "/user" }
   ],
   "headers": [
     {
