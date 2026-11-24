@@ -1,6 +1,6 @@
 # 채팅 웹서비스 (Vercel + Supabase, 무료 플랜 기준)
 
-운영자 1명 + 사용자 150명, 주 2회, 사진 3장/인 기준으로 설계했습니다.
+운영자 1명 + 사용자 150명, 주 2회, 사진 5장·메시지 10개/인 기준으로 설계했습니다.
 
 ```
 chat-app/
@@ -48,8 +48,8 @@ chat-app/
 
 | 항목 | 값 | 위치 |
 |---|---|---|
-| 사용자당 메시지 | 8개 | `app_settings.max_msgs_per_user` + `user.html` 의 `MAX_MSG` |
-| 사용자당 사진 | 3장 | `app_settings.max_photos_per_user` + `MAX_PHOTO` |
+| 사용자당 메시지 | 10개 | `app_settings.max_msgs_per_user` + `user.html` 의 `MAX_MSG` |
+| 사용자당 사진 | 5장 | `app_settings.max_photos_per_user` + `MAX_PHOTO` |
 | 월 Realtime 메시지 | 한도(200만)의 95% 도달 시 사용자 메시지 차단 | `rt_guard_ratio` |
 | 파일 | 1MB 초과·JPEG 외 업로드 서버에서 거부 | Storage 버킷 설정 |
 

@@ -125,8 +125,8 @@ const $ = (id) => document.getElementById(id);
 const show = (name) => document.querySelectorAll('.screen').forEach((s) => { s.hidden = s.dataset.screen !== name; });
 
 // ---- 서버(schema.sql)와 맞춰야 하는 값 ----
-const MAX_MSG = 8;               // 사용자 1명당 최대 메시지 수
-const MAX_PHOTO = 3;             // 사용자 1명당 최대 사진 수
+const MAX_MSG = 10;               // 사용자 1명당 최대 메시지 수
+const MAX_PHOTO = 5;             // 사용자 1명당 최대 사진 수
 const MAX_PHOTO_BYTES = 1000000; // 1MB(1,048,576) 미만으로 자동 축소
 const THUMB_BYTES = 30000;       // 운영자 모아보기용 썸네일
 const SEND_COOLDOWN = 2000;      // ms

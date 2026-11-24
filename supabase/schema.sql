@@ -8,8 +8,8 @@
 -- ---------- 설정 (한도 가드 값) ----------
 create table if not exists public.app_settings (
   id                  int primary key default 1 check (id = 1),
-  max_msgs_per_user   int     not null default 8,
-  max_photos_per_user int     not null default 3,
+  max_msgs_per_user   int     not null default 10,
+  max_photos_per_user int     not null default 5,
   assumed_recipients  int     not null default 150,
   rt_message_limit    bigint  not null default 2000000,
   rt_guard_ratio      numeric not null default 0.95
