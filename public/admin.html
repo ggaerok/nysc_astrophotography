@@ -153,13 +153,17 @@ header h1{font-size:19px;margin:0;flex:1}
 
       <section class="card" id="usageCard">
         <div class="head"><h2>무료 플랜 사용량</h2><button class="btn ghost sm" id="refreshBtn" type="button">새로고침</button></div>
-        <div class="meter"><div class="l"><span>전송량 (한도 5GB = 100%)</span><b id="egT">-</b></div><div class="bar"><i id="egB"></i></div><small id="egS"></small></div>
-        <div class="meter"><div class="l"><span>사진 저장 용량 (한도 1GB)</span><b id="stT">-</b></div><div class="bar"><i id="stB"></i></div><small id="stS"></small></div>
+        <div class="meter"><div class="l"><span>전송량 Egress (한도 5GB = 100%)</span><b id="egT">-</b></div><div class="bar"><i id="egB"></i></div><small id="egS"></small></div>
+        <div class="meter"><div class="l"><span>캐시 전송량 Cached Egress (5GB)</span><b id="ceT">-</b></div><div class="bar"><i id="ceB"></i></div><small id="ceS"></small></div>
+        <div class="meter"><div class="l"><span>사진 저장 용량 Storage (1GB)</span><b id="stT">-</b></div><div class="bar"><i id="stB"></i></div><small id="stS"></small></div>
         <div class="meter"><div class="l"><span>실시간 메시지 (월 200만 건)</span><b id="rtT">-</b></div><div class="bar"><i id="rtB"></i></div><small id="rtS"></small></div>
+        <div class="meter"><div class="l"><span>동시 접속 최고치 (200명)</span><b id="pcT">-</b></div><div class="bar"><i id="pcB"></i></div><small id="pcS"></small></div>
+        <div class="meter"><div class="l"><span>DB 크기 (0.5GB)</span><b id="dbT">-</b></div><div class="bar"><i id="dbB"></i></div><small id="dbS"></small></div>
+        <small class="mute" id="syncInfo"></small>
         <div class="actions">
           <button class="btn danger" id="wipeBtn" type="button">사진 일괄 삭제</button>
         </div>
-        <small class="mute">전송량·메시지는 앱에서 계산한 추정치입니다. 채팅 종료 후 Claude에게 사용량 확인을 요청하면 실제 값으로 보정됩니다.</small>
+        <small class="mute">채팅 종료 후 Supabase 대시보드 값을 Claude에게 알려 주면 실제 값으로 보정됩니다.</small>
       </section>
       </div>
     </aside>
@@ -554,9 +558,14 @@ function meter(bar, textEl, subEl, used, limit, sub) {
 function renderUsage() {
   if (!usage) return;
   const eg = usage.egress_bytes + pend;
-  meter('egB', 'egT', 'egS', eg, LIM.egress, `${fmtB(eg)} / 5 GB · ${usage.month} 누적`);
-  meter('stB', 'stT', 'stS', usage.storage_bytes, LIM.storage, `${fmtB(usage.storage_bytes)} / 1 GB · 현재 저장 중`);
-  meter('rtB', 'rtT', 'rtS', usage.rt_messages, usage.rt_limit, `${usage.rt_messages.toLocaleString()} / ${Number(usage.rt_limit).toLocaleString()} 건 (수신자 포함 추정)`);
+  const sync = usage.synced_at ? new Date(usage.synced_at).toLocaleString('ko-KR') : '없음';
+  meter('egB', 'egT', 'egS', eg, LIM.egress, `${fmtB(eg)} / 5 GB · 결제주기 ${usage.month} 시작`);
+  meter('ceB', 'ceT', 'ceS', usage.cached_bytes, 5e9, `${fmtB(usage.cached_bytes)} / 5 GB · 대시보드 실측(보정 시점)`);
+  meter('stB', 'stT', 'stS', usage.storage_bytes, LIM.storage, `${fmtB(usage.storage_bytes)} / 1 GB · 현재 저장 중(실시간)`);
+  meter('rtB', 'rtT', 'rtS', usage.rt_messages, usage.rt_limit, `${usage.rt_messages.toLocaleString()} / ${Number(usage.rt_limit).toLocaleString()} 건 (보정 후 추정 누적)`);
+  meter('pcB', 'pcT', 'pcS', usage.peak_conn, 200, `${usage.peak_conn} / 200 명 · 대시보드 실측(보정 시점)`);
+  meter('dbB', 'dbT', 'dbS', usage.db_bytes, 5e8, `${fmtB(usage.db_bytes)} / 0.5 GB · 실시간`);
+  $('syncInfo').textContent = `전송량·메시지는 마지막 보정 이후 추정치가 더해집니다. 마지막 보정: ${sync}`;
 }
 $('refreshBtn').onclick = refreshUsage;
 

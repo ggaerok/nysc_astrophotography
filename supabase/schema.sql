@@ -73,11 +73,22 @@ create index if not exists photos_room_idx   on public.photos (room_id, id);
 create index if not exists photos_client_idx on public.photos (room_id, client_id);
 
 -- ---------- 월별 사용량 추정 카운터 ----------
+-- Supabase 결제 주기(매월 23일 시작, UTC)를 키로 사용
+create or replace function public.cycle_key() returns text
+language sql stable set search_path = public as $$
+  select to_char(case when extract(day from (now() at time zone 'utc')) >= 23
+    then date_trunc('month', now() at time zone 'utc') + interval '22 days'
+    else date_trunc('month', now() at time zone 'utc') - interval '1 month' + interval '22 days' end, 'YYYY-MM-DD');
+$$;
+
 create table if not exists public.usage_monthly (
   month        text primary key,
   egress_bytes bigint not null default 0,
   rt_messages  bigint not null default 0
 );
+alter table public.usage_monthly add column if not exists cached_bytes bigint not null default 0;
+alter table public.usage_monthly add column if not exists peak_conn int not null default 0;
+alter table public.usage_monthly add column if not exists synced_at timestamptz;
 
 -- ---------- 헬퍼 ----------
 create or replace function public.is_admin() returns boolean
@@ -224,7 +235,7 @@ declare
   p    public.participants;
   cnt  int;
   used bigint;
-  m    text := to_char(now() at time zone 'utc', 'YYYY-MM');
+  m    text := public.cycle_key();
 begin
   select * into s from public.app_settings where id = 1;
 
@@ -266,7 +277,7 @@ declare
   s   public.app_settings;
   p   public.participants;
   cnt int;
-  m   text := to_char(now() at time zone 'utc', 'YYYY-MM');
+  m   text := public.cycle_key();
 begin
   select * into s from public.app_settings where id = 1;
   select * into p from public.participants where room_id = new.room_id and client_id = new.client_id;
@@ -288,7 +299,7 @@ create trigger trg_photos_guard before insert on public.photos
 -- ---------- 운영자 전용 RPC ----------
 create or replace function public.add_egress(p_bytes bigint) returns void
 language plpgsql security definer set search_path = public as $$
-declare m text := to_char(now() at time zone 'utc', 'YYYY-MM');
+declare m text := public.cycle_key();
 begin
   if not public.is_admin() then raise exception 'forbidden'; end if;
   if p_bytes is null or p_bytes <= 0 or p_bytes > 5000000000 then return; end if;
@@ -300,7 +311,7 @@ $$;
 create or replace function public.get_usage() returns json
 language plpgsql security definer set search_path = public, storage as $$
 declare
-  m  text := to_char(now() at time zone 'utc', 'YYYY-MM');
+  m  text := public.cycle_key();
   u  public.usage_monthly;
   s  public.app_settings;
   st bigint;
@@ -313,8 +324,12 @@ begin
   return json_build_object(
     'month', m,
     'egress_bytes', coalesce(u.egress_bytes, 0),
+    'cached_bytes', coalesce(u.cached_bytes, 0),
     'rt_messages', coalesce(u.rt_messages, 0),
+    'peak_conn', coalesce(u.peak_conn, 0),
+    'synced_at', u.synced_at,
     'storage_bytes', st,
+    'db_bytes', pg_database_size(current_database()),
     'rt_limit', s.rt_message_limit,
     'max_msgs', s.max_msgs_per_user,
     'max_photos', s.max_photos_per_user
@@ -326,7 +341,7 @@ create or replace function public.reset_usage() returns void
 language plpgsql security definer set search_path = public as $$
 begin
   if not public.is_admin() then raise exception 'forbidden'; end if;
-  delete from public.usage_monthly where month = to_char(now() at time zone 'utc', 'YYYY-MM');
+  delete from public.usage_monthly where month = public.cycle_key();
 end;
 $$;
 
@@ -350,7 +365,7 @@ create or replace function public.kick_participant(p_room uuid, p_client uuid) r
 language plpgsql security definer set search_path = public as $$
 declare
   s public.app_settings;
-  m text := to_char(now() at time zone 'utc', 'YYYY-MM');
+  m text := public.cycle_key();
 begin
   if not public.is_admin() then raise exception 'forbidden'; end if;
   select * into s from public.app_settings where id = 1;
