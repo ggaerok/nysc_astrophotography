@@ -381,9 +381,9 @@ create or replace function public.close_room(p_room uuid) returns void
 language plpgsql security definer set search_path = public as $$
 begin
   if not public.is_admin() then raise exception 'forbidden'; end if;
-  update public.rooms set status = 'closed', closed_at = now() where id = p_room;
-  delete from public.messages     where room_id = p_room;
-  delete from public.participants where room_id = p_room;
+  -- 방(이름 포함)을 삭제하면 messages / participants / photos 가 on delete cascade 로 함께 삭제됨.
+  -- usage_monthly(사용량 누적)는 방과 무관하므로 유지됨.
+  delete from public.rooms where id = p_room;
 end;
 $$;
 
