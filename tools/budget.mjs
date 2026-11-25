@@ -15,7 +15,7 @@ const P = {
   admins: 1,
   spw: arg('spw', 2),                  // 주당 운영 횟수
   photos: arg('photos', 3),            // 사용자 1명당 사진 수
-  photoMax: arg('photoMax', 1_000_000),// 사진 최대 크기(자동 축소 상한)
+  photoMax: arg('photoMax', 600_000),// 사진 최대 크기(자동 축소 상한)
   photoTyp: arg('photoTyp', 400_000),  // 사진 평균 크기(휴대폰 사진 1920px 기준 추정)
   thumb: arg('thumb', 25_000),         // 썸네일 평균(상한 30KB)
   msgs: arg('msgs', 8),                // 사용자 1명당 메시지 수(상한 = max_msgs_per_user)

@@ -9,7 +9,7 @@
 create table if not exists public.app_settings (
   id                  int primary key default 1 check (id = 1),
   max_msgs_per_user   int     not null default 10,
-  max_photos_per_user int     not null default 5,
+  max_photos_per_user int     not null default 10,
   assumed_recipients  int     not null default 150,
   rt_message_limit    bigint  not null default 2000000,
   rt_guard_ratio      numeric not null default 0.95
@@ -63,10 +63,12 @@ create table if not exists public.photos (
   nickname    text not null,
   path        text not null unique,
   thumb_path  text not null,
-  size_bytes  int  not null check (size_bytes > 0 and size_bytes <= 1048576),
+  size_bytes  int  not null check (size_bytes > 0 and size_bytes <= 614400),
   thumb_bytes int  not null check (thumb_bytes > 0 and thumb_bytes <= 102400),
   created_at  timestamptz not null default now()
 );
+alter table public.photos drop constraint if exists photos_size_bytes_check;
+alter table public.photos add  constraint photos_size_bytes_check check (size_bytes > 0 and size_bytes <= 614400);
 alter table public.photos drop constraint if exists photos_nickname_check;
 alter table public.photos add  constraint photos_nickname_check check (char_length(nickname) between 1 and 50);
 create index if not exists photos_room_idx   on public.photos (room_id, id);
@@ -454,7 +456,7 @@ drop policy if exists photos_anon_insert on public.photos;
 
 -- ---------- Storage: 비공개 버킷 'photos' ----------
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values ('photos', 'photos', false, 1048576, array['image/jpeg'])
+values ('photos', 'photos', false, 614400, array['image/jpeg'])
 on conflict (id) do update
   set public = false,
       file_size_limit = excluded.file_size_limit,

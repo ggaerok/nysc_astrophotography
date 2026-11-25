@@ -126,8 +126,8 @@ const show = (name) => document.querySelectorAll('.screen').forEach((s) => { s.h
 
 // ---- 서버(schema.sql)와 맞춰야 하는 값 ----
 const MAX_MSG = 10;               // 사용자 1명당 최대 메시지 수
-const MAX_PHOTO = 5;             // 사용자 1명당 최대 사진 수
-const MAX_PHOTO_BYTES = 1000000; // 1MB(1,048,576) 미만으로 자동 축소
+const MAX_PHOTO = 10;             // 사용자 1명당 최대 사진 수
+const MAX_PHOTO_BYTES = 600000; // 600KB 이하로 자동 축소 (서버 상한 614,400)
 const THUMB_BYTES = 30000;       // 운영자 모아보기용 썸네일
 const SEND_COOLDOWN = 2000;      // ms
 const HEARTBEAT_MS = 25000;      // 접속 유지 신호 간격
@@ -304,7 +304,7 @@ $('form').addEventListener('submit', async (e) => {
   channel.send({ type: 'broadcast', event: 'msg', payload: { id: data.id, s: 'user', n: data.nick, b: body } });
 });
 
-// ---- 4) 사진: 1MB 미만으로 자동 축소 후 업로드 (운영자에게만 전달) ----
+// ---- 4) 사진: 600KB 이하로 자동 축소 후 업로드 (운영자에게만 전달) ----
 async function toBitmap(file) {
   try { return await createImageBitmap(file, { imageOrientation: 'from-image' }); }
   catch (_) {
