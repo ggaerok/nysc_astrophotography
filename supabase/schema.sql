@@ -158,6 +158,11 @@ begin
   on conflict (room_id, client_id) do update
     set affiliation = excluded.affiliation, name = excluded.name, status = 'in', last_seen = now()
     where public.participants.status <> 'kicked';
+
+  -- 이번 결제주기 동시 접속 최고치 기록 (접속자 + 운영자 1)
+  insert into public.usage_monthly (month, peak_conn) values (public.cycle_key(), online + 2)
+  on conflict (month) do update
+    set peak_conn = greatest(public.usage_monthly.peak_conn, excluded.peak_conn);
   return 'ok';
 end;
 $$;
@@ -327,6 +332,7 @@ begin
     'cached_bytes', coalesce(u.cached_bytes, 0),
     'rt_messages', coalesce(u.rt_messages, 0),
     'peak_conn', coalesce(u.peak_conn, 0),
+    'online_now', (select count(*) from public.participants where status = 'in' and last_seen > now() - interval '60 seconds'),
     'synced_at', u.synced_at,
     'storage_bytes', st,
     'db_bytes', pg_database_size(current_database()),

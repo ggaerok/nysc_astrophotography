@@ -170,7 +170,7 @@ header h1{font-size:19px;margin:0;flex:1}
         <div class="meter"><div class="l"><span>캐시 전송량 Cached Egress (5GB)</span><b id="ceT">-</b></div><div class="bar"><i id="ceB"></i></div><small id="ceS"></small></div>
         <div class="meter"><div class="l"><span>사진 저장 용량 Storage (1GB)</span><b id="stT">-</b></div><div class="bar"><i id="stB"></i></div><small id="stS"></small></div>
         <div class="meter"><div class="l"><span>실시간 메시지 (월 200만 건)</span><b id="rtT">-</b></div><div class="bar"><i id="rtB"></i></div><small id="rtS"></small></div>
-        <div class="meter"><div class="l"><span>동시 접속 최고치 (200명)</span><b id="pcT">-</b></div><div class="bar"><i id="pcB"></i></div><small id="pcS"></small></div>
+        <div class="meter"><div class="l"><span>동시 접속 지금 (한도 200명)</span><b id="pcT">-</b></div><div class="bar"><i id="pcB"></i></div><small id="pcS"></small></div>
         <div class="meter"><div class="l"><span>DB 크기 (0.5GB)</span><b id="dbT">-</b></div><div class="bar"><i id="dbB"></i></div><small id="dbS"></small></div>
         <small class="mute" id="syncInfo"></small>
         <div class="actions">
@@ -643,7 +643,8 @@ function renderUsage() {
   meter('ceB', 'ceT', 'ceS', usage.cached_bytes, 5e9, `${fmtB(usage.cached_bytes)} / 5 GB · 대시보드 실측(보정 시점)`);
   meter('stB', 'stT', 'stS', usage.storage_bytes, LIM.storage, `${fmtB(usage.storage_bytes)} / 1 GB · 현재 저장 중(실시간)`);
   meter('rtB', 'rtT', 'rtS', usage.rt_messages, usage.rt_limit, `${usage.rt_messages.toLocaleString()} / ${Number(usage.rt_limit).toLocaleString()} 건 (보정 후 추정 누적)`);
-  meter('pcB', 'pcT', 'pcS', usage.peak_conn, 200, `${usage.peak_conn} / 200 명 · 대시보드 실측(보정 시점)`);
+  const now = (usage.online_now || 0) + 1;   // 접속자 + 운영자
+  meter('pcB', 'pcT', 'pcS', now, 200, `지금 ${now} / 200 명 (접속자 ${usage.online_now || 0} + 운영자 1) · 이번 결제주기 최고 ${usage.peak_conn}명`);
   meter('dbB', 'dbT', 'dbS', usage.db_bytes, 5e8, `${fmtB(usage.db_bytes)} / 0.5 GB · 실시간`);
   $('syncInfo').textContent = `전송량·메시지는 마지막 보정 이후 추정치가 더해집니다. 마지막 보정: ${sync}`;
 }
